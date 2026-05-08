@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoundAI DJ Studio | Traktor Style</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dj-orange: #ff5500;
+            --dj-blue: #00ccff;
+            --dj-dark: #121212;
+            --dj-surface: #1e1e1e;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dj-dark);
+            color: #e0e0e0;
+            user-select: none;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+
+        /* Estilo de Perillas (Knobs) */
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        input[type="range"].vertical {
+            writing-mode: bt-lr; /* Firefox */
+            appearance: slider-vertical;
+            width: 8px;
+            height: 100px;
+        }
+
+        .deck-card {
+            background: linear-gradient(145deg, #252525, #1a1a1a);
+            border: 1px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .active-deck-a { border-top: 4px solid var(--dj-orange); }
+        .active-deck-b { border-top: 4px solid var(--dj-blue); }
+
+        .waveform-canvas {
+            width: 100%;
+            height: 60px;
+            background: #000;
+            border-radius: 4px;
+        }
+
+        /* Faders */
+        input[type="range"] {
+            accent-color: var(--dj-orange);
+            cursor: pointer;
+        }
+
+        .crossfader {
+            width: 200px;
+            height: 10px;
+        }
+
+        .btn-transport {
+            transition: all 0.2s;
+            filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
+        }
+
+        .btn-transport:active { transform: scale(0.9); }
+
+        /* Animación de giro */
+        .spinning {
+            animation: rotate 2s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <header class="max-w-[1400px] mx-auto flex justify-between items-center mb-6">
+        <div class="flex items-center gap-4">
+            <img src="https://raw.githubusercontent.com/ApoloSolInvictus/soundai/main/images/A-Mark-Logo-SC.png" class="w-10 h-10 rounded-full border border-orange-500">
+            <h1 class="font-orbitron text-2xl font-bold tracking-widest text-orange-600">SOUNDAI <span class="text-white opacity-50">STUDIO</span></h1>
+        </div>
+        <div class="flex gap-4">
+            <div id="masterLevel" class="flex gap-1 h-6 items-end">
+                <div class="w-2 bg-green-500 h-1"></div>
+                <div class="w-2 bg-green-500 h-2"></div>
+                <div class="w-2 bg-yellow-500 h-3"></div>
+                <div class="w-2 bg-red-500 h-1"></div>
+            </div>
+            <span class="text-[10px] uppercase tracking-widest text-gray-500">Master Output</span>
+        </div>
+    </header>
+
+    <main class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <section class="lg:col-span-5 deck-card p-6 rounded-2xl active-deck-a relative overflow-hidden">
+            <div class="flex justify-between mb-4">
+                <div>
+                    <h2 class="font-orbitron text-orange-500 text-xs">DECK A</h2>
+                    <p id="titleA" class="text-lg font-bold truncate w-48">Carga una pista...</p>
+                </div>
+                <div class="text-right">
+                    <p id="bpmA" class="font-orbitron text-xl text-white">124.0</p>
+                    <p class="text-[8px] text-gray-500 uppercase">BPM</p>
+                </div>
+            </div>
+
+            <!-- Waveform A -->
+            <canvas id="waveA" class="waveform-canvas mb-4"></canvas>
+
+            <div class="grid grid-cols-4 gap-4 items-center">
+                <!-- Transport -->
+                <div class="col-span-2 flex gap-4">
+                    <button onclick="playDeck('A')" class="btn-transport w-16 h-16 bg-orange-600 rounded-full flex items-center justify-center text-white">
+                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button onclick="stopDeck('A')" class="btn-transport w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center text-white">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                    </button>
+                </div>
+                <!-- Pitch -->
+                <div class="col-span-2 knob-container">
+                    <input type="range" id="pitchA" min="0.8" max="1.2" step="0.01" value="1" class="w-full">
+                    <span class="text-[10px] text-gray-500">PITCH / SPEED</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-2 flex flex-col items-center justify-between bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
+            <div class="flex flex-col gap-6 w-full items-center">
+                <div class="knob-container">
+                    <input type="range" id="eqHigh" min="-20" max="10" value="0" class="vertical">
+                    <span class="text-[9px] text-gray-400">HIGH</span>
+                </div>
+                <div class="knob-container">
+                    <input type="range" id="eqMid" min="-20" max="10" value="0" class="vertical">
+                    <span class="text-[9px] text-gray-400">MID</span>
+                </div>
+                <div class="knob-container">
+                    <input type="range" id="eqLow" min="-20" max="10" value="0" class="vertical">
+                    <span class="text-[9px] text-gray-400">LOW</span>
+                </div>
+                <div class="knob-container mt-4">
+                    <input type="range" id="filter" min="20" max="10000" value="10000" class="w-24">
+                    <span class="text-[9px] text-orange-500">FILTER LPF</span>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <span class="text-[10px] text-gray-500 block mb-2">CROSSFADER</span>
+                <input type="range" id="crossfader" min="0" max="1" step="0.01" value="0.5" class="crossfader">
+            </div>
+        </section>
+
+        <section class="lg:col-span-5 deck-card p-6 rounded-2xl active-deck-b relative overflow-hidden">
+            <div class="flex justify-between mb-4">
+                <div class="text-left">
+                    <p id="bpmB" class="font-orbitron text-xl text-white">128.0</p>
+                    <p class="text-[8px] text-gray-500 uppercase">BPM</p>
+                </div>
+                <div class="text-right">
+                    <h2 class="font-orbitron text-blue-500 text-xs">DECK B</h2>
+                    <p id="titleB" class="text-lg font-bold truncate w-48">Carga una pista...</p>
+                </div>
+            </div>
+
+            <canvas id="waveB" class="waveform-canvas mb-4"></canvas>
+
+            <div class="grid grid-cols-4 gap-4 items-center">
+                <div class="col-span-2 knob-container">
+                    <input type="range" id="pitchB" min="0.8" max="1.2" step="0.01" value="1" class="w-full">
+                    <span class="text-[10px] text-gray-500">PITCH / SPEED</span>
+                </div>
+                <div class="col-span-2 flex justify-end gap-4">
+                    <button onclick="stopDeck('B')" class="btn-transport w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center text-white">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                    </button>
+                    <button onclick="playDeck('B')" class="btn-transport w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-12 bg-zinc-900 rounded-xl p-4 border border-zinc-800">
+            <div class="flex justify-between items-center mb-4 px-2">
+                <h3 class="font-orbitron text-xs tracking-tighter text-gray-400">LIBRARY EXPLORER (/AUDIO)</h3>
+                <span id="status" class="text-[9px] text-green-500 font-bold animate-pulse uppercase">Syncing GitHub...</span>
+            </div>
+            
+            <div class="max-h-64 overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left text-sm">
+                    <thead class="text-gray-500 border-b border-zinc-800 text-[10px] uppercase">
+                        <tr>
+                            <th class="p-3">Track Name</th>
+                            <th class="p-3">Format</th>
+                            <th class="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="libraryBody">
+                        <!-- Tracks dinámicos aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const GITHUB_REPO = "ApoloSolInvictus/soundai";
+        const AUDIO_PATH = "audio";
+
+        // Estructura de Audio Deck A
+        const playerA = new Tone.Player().toDestination();
+        const filterA = new Tone.Filter(10000, "lowpass").connect(playerA.output);
+        const eqA = new Tone.EQ3(0, 0, 0).connect(playerA.output);
+
+        // Estructura de Audio Deck B
+        const playerB = new Tone.Player().toDestination();
+        const filterB = new Tone.Filter(10000, "lowpass").connect(playerB.output);
+        const eqB = new Tone.EQ3(0, 0, 0).connect(playerB.output);
+
+        // Crossfader Logic
+        const crossfade = new Tone.CrossFade().toDestination();
+        playerA.connect(crossfade.a);
+        playerB.connect(crossfade.b);
+
+        let tracks = [];
+
+        async function loadLibrary() {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${AUDIO_PATH}`);
+                const files = await response.json();
+                
+                tracks = files.filter(f => f.name.endsWith('.mp3') || f.name.endsWith('.wav'));
+                renderLibrary();
+                document.getElementById('status').innerText = "ONLINE - REPO SYNCED";
+            } catch (e) {
+                document.getElementById('status').innerText = "OFFLINE - ERROR";
+            }
+        }
+
+        function renderLibrary() {
+            const body = document.getElementById('libraryBody');
+            body.innerHTML = '';
+            
+            tracks.forEach((track, i) => {
+                const row = document.createElement('tr');
+                row.className = "border-b border-zinc-800/50 hover:bg-zinc-800/50 group transition";
+                row.innerHTML = `
+                    <td class="p-3 font-semibold text-gray-300">${track.name.replace(/\.[^/.]+$/, "") || track.name}</td>
+                    <td class="p-3 text-zinc-500 text-[10px]">${track.name.split('.').pop().toUpperCase()}</td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="loadToDeck('${track.download_url}', 'A', '${track.name}')" class="px-3 py-1 bg-orange-600/20 text-orange-500 rounded text-[10px] font-bold hover:bg-orange-600 hover:text-white">DECK A</button>
+                        <button onclick="loadToDeck('${track.download_url}', 'B', '${track.name}')" class="px-3 py-1 bg-blue-600/20 text-blue-500 rounded text-[10px] font-bold hover:bg-blue-600 hover:text-white">DECK B</button>
+                    </td>
+                `;
+                body.appendChild(row);
+            });
+        }
+
+        async function loadToDeck(url, deck, name) {
+            await Tone.start();
+            const p = (deck === 'A') ? playerA : playerB;
+            const titleEl = (deck === 'A') ? document.getElementById('titleA') : document.getElementById('titleB');
+            
+            titleEl.innerText = "LOADING...";
+            await p.load(url);
+            titleEl.innerText = name.replace(/\.[^/.]+$/, "");
+            
+            // Iniciar dibujo de waveform
+            drawWaveform(p.buffer, deck);
+        }
+
+        function drawWaveform(buffer, deck) {
+            const canvas = document.getElementById(deck === 'A' ? 'waveA' : 'waveB');
+            const ctx = canvas.getContext('2d');
+            const data = buffer.getChannelData(0);
+            const step = Math.ceil(data.length / canvas.width);
+            const amp = canvas.height / 2;
+            
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0,0, canvas.width, canvas.height);
+            ctx.strokeStyle = deck === 'A' ? '#ff5500' : '#00ccff';
+            ctx.beginPath();
+            
+            for(let i=0; i < canvas.width; i++) {
+                let min = 1.0;
+                let max = -1.0;
+                for (let j=0; j<step; j++) {
+                    const datum = data[(i*step)+j];
+                    if (datum < min) min = datum;
+                    if (datum > max) max = datum;
+                }
+                ctx.moveTo(i, (1+min)*amp);
+                ctx.lineTo(i, (1+max)*amp);
+            }
+            ctx.stroke();
+        }
+
+        function playDeck(deck) {
+            const p = (deck === 'A') ? playerA : playerB;
+            if (p.state === "started") {
+                p.stop();
+            } else {
+                p.start();
+            }
+        }
+
+        function stopDeck(deck) {
+            const p = (deck === 'A') ? playerA : playerB;
+            p.stop();
+        }
+
+        document.getElementById('crossfader').addEventListener('input', (e) => {
+            crossfade.fade.value = e.target.value;
+        });
+
+        document.getElementById('pitchA').addEventListener('input', (e) => {
+            playerA.playbackRate = e.target.value;
+            document.getElementById('bpmA').innerText = (124 * e.target.value).toFixed(1);
+        });
+
+        document.getElementById('pitchB').addEventListener('input', (e) => {
+            playerB.playbackRate = e.target.value;
+            document.getElementById('bpmB').innerText = (128 * e.target.value).toFixed(1);
+        });
+
+        // EQ Listeners
+        document.getElementById('eqHigh').addEventListener('input', (e) => {
+            eqA.high.value = e.target.value;
+            eqB.high.value = e.target.value;
+        });
+        
+        document.getElementById('eqMid').addEventListener('input', (e) => {
+            eqA.mid.value = e.target.value;
+            eqB.mid.value = e.target.value;
+        });
+
+        document.getElementById('eqLow').addEventListener('input', (e) => {
+            eqA.low.value = e.target.value;
+            eqB.low.value = e.target.value;
+        });
+
+        document.getElementById('filter').addEventListener('input', (e) => {
+            filterA.frequency.value = e.target.value;
+            filterB.frequency.value = e.target.value;
+        });
+
+        window.onload = loadLibrary;
+    </script>
+</body>
+</html>
