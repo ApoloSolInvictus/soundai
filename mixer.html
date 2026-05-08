@@ -28,19 +28,19 @@
 
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Estilos Beatport DJ */
         .glass-panel {
-            background: rgba(20, 20, 20, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(12px);
             border: 1px solid var(--bp-border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
 
         .waveform-container {
-            height: 120px;
-            background: #000;
+            height: 140px;
+            background: #050505;
             position: relative;
             overflow: hidden;
-            border-radius: 8px;
+            border-radius: 12px;
             border: 1px solid #1a1a1a;
         }
 
@@ -50,220 +50,247 @@
             top: 0;
             width: 2px;
             height: 100%;
-            background: white;
-            z-index: 10;
-            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            background: #fff;
+            z-index: 20;
+            box-shadow: 0 0 15px rgba(255,255,255,0.8);
+            pointer-events: none;
         }
 
-        /* Controles */
+        /* Controles Personalizados */
         input[type="range"] {
             appearance: none;
             background: #222;
             border-radius: 10px;
+            height: 4px;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             appearance: none;
-            width: 12px;
-            height: 24px;
+            width: 16px;
+            height: 16px;
             background: var(--bp-green);
-            border-radius: 2px;
+            border-radius: 50%;
             cursor: pointer;
+            border: 2px solid #000;
+            box-shadow: 0 0 5px rgba(0,255,136,0.5);
         }
 
         .knob-input {
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
-            border: 3px solid #333;
-            background: conic-gradient(from 180deg, var(--bp-green) 0deg, #111 0deg);
+            background: #1a1a1a;
+            border: 2px solid #333;
             position: relative;
             cursor: ns-resize;
+            transition: border-color 0.2s;
         }
 
-        .knob-input::after {
-            content: '';
+        .knob-input:hover { border-color: var(--bp-green); }
+
+        .knob-marker {
             position: absolute;
-            top: 5px;
+            top: 4px;
             left: 50%;
             width: 2px;
-            height: 10px;
-            background: white;
+            height: 8px;
+            background: var(--bp-green);
+            transform-origin: 50% 18px;
             transform: translateX(-50%);
         }
 
-        .btn-bp {
-            @apply transition-all active:scale-95 disabled:opacity-30;
+        .btn-transport {
+            @apply w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90 border-2;
         }
 
-        .led-indicator {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #333;
+        .vu-meter-bg {
+            background: linear-gradient(to right, #00ff88 60%, #ffcc00 85%, #ff4400 100%);
         }
 
-        .led-active { background: var(--bp-green); box-shadow: 0 0 5px var(--bp-green); }
-
-        /* Animación Waveform */
-        canvas {
-            image-rendering: pixelated;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
     </style>
 </head>
 <body class="flex flex-col">
 
-    <header class="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-black z-50">
+    <header class="h-16 border-b border-zinc-800 flex items-center justify-between px-8 bg-black z-50">
         <div class="flex items-center gap-4">
-            <img src="https://raw.githubusercontent.com/ApoloSolInvictus/soundai/main/images/A-Mark-Logo-SC.png" class="w-8 h-8 rounded-full border border-zinc-700">
+            <img src="https://raw.githubusercontent.com/ApoloSolInvictus/soundai/main/images/A-Mark-Logo-SC.png" class="w-9 h-9 rounded-full border-2 border-zinc-700">
             <h1 class="font-bold tracking-tighter text-xl flex items-center gap-2">
-                SOUNDAI <span class="text-[10px] bg-green-500 text-black px-1 rounded font-black mt-1">DJ PRO</span>
+                SOUNDAI <span class="text-[10px] bg-green-500 text-black px-1.5 py-0.5 rounded font-black mt-1 uppercase">DJ ENGINE v2</span>
             </h1>
         </div>
         
-        <div class="flex items-center gap-8">
-            <div class="text-center">
-                <p id="masterClock" class="font-mono text-xl text-green-400">124.00</p>
-                <p class="text-[8px] uppercase tracking-widest text-zinc-500">Master BPM</p>
+        <div class="flex items-center gap-10">
+            <div class="flex flex-col items-center">
+                <div class="flex items-center gap-2">
+                    <button onclick="adjustMasterBPM(-1)" class="text-zinc-600 hover:text-white">-</button>
+                    <p id="masterClock" class="font-mono text-2xl text-green-400 w-24 text-center">124.00</p>
+                    <button onclick="adjustMasterBPM(1)" class="text-zinc-600 hover:text-white">+</button>
+                </div>
+                <p class="text-[8px] uppercase tracking-[0.3em] text-zinc-500">Master BPM</p>
             </div>
-            <div class="flex gap-1 items-center">
-                <div class="w-32 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                    <div id="masterVu" class="h-full bg-gradient-to-r from-green-500 to-red-500 w-0 transition-all duration-75"></div>
+
+            <div class="flex flex-col gap-1">
+                <div class="w-48 h-3 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800 relative">
+                    <div id="masterVu" class="vu-meter-bg h-full w-0 transition-all duration-75"></div>
+                    <div class="absolute inset-0 flex justify-between px-1 pointer-events-none opacity-20">
+                        <div class="w-px h-full bg-black"></div>
+                        <div class="w-px h-full bg-black"></div>
+                        <div class="w-px h-full bg-black"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-[7px] text-zinc-600 font-bold">
+                    <span>-60dB</span><span>-12dB</span><span>0dB</span>
                 </div>
             </div>
         </div>
 
-        <div class="flex items-center gap-4">
-            <button class="px-4 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-xs font-bold transition">LOGIN</button>
-            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+        <div class="flex items-center gap-6">
+            <div class="flex flex-col items-end">
+                 <span class="text-[9px] font-bold text-zinc-500 uppercase">Master Volume</span>
+                 <input type="range" id="masterVol" min="0" max="1.2" step="0.01" value="1" class="w-24 accent-green-500">
+            </div>
+            <div class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.6)]"></div>
         </div>
     </header>
 
     <main class="flex-1 flex flex-col overflow-hidden">
         
-        <!-- Decks Section -->
         <div class="grid grid-cols-12 gap-2 p-2 flex-1 min-h-0">
             
             <!-- Deck A -->
             <section class="col-span-5 flex flex-col gap-2 h-full">
-                <div class="glass-panel p-4 rounded-xl flex-1 flex flex-col">
+                <div class="glass-panel p-5 rounded-2xl flex-1 flex flex-col border-orange-500/20">
                     <div class="flex justify-between items-start mb-4">
                         <div>
-                            <span class="text-[10px] font-bold text-orange-500 border border-orange-500/30 px-2 py-0.5 rounded">DECK A</span>
-                            <h2 id="titleA" class="text-2xl font-black truncate max-w-xs mt-1">Ready to Load...</h2>
-                            <p class="text-zinc-500 text-xs font-medium">SoundAI AI Original</p>
+                            <span class="text-[9px] font-black text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/30">DECK A</span>
+                            <h2 id="titleA" class="text-2xl font-black truncate max-w-xs mt-1 tracking-tight">Cargar pista...</h2>
+                            <p class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">SoundAI Original Artist</p>
                         </div>
                         <div class="text-right">
-                            <p id="timeA" class="font-mono text-2xl text-orange-500">00:00.0</p>
-                            <p id="remA" class="font-mono text-[10px] text-zinc-600">-00:00.0</p>
+                            <p id="timeA" class="font-mono text-3xl text-orange-500 leading-none">00:00.0</p>
+                            <p id="remA" class="font-mono text-[11px] text-zinc-600 mt-1">-00:00.0</p>
                         </div>
                     </div>
 
-                    <div class="waveform-container mb-4">
+                    <div class="waveform-container mb-6 group">
                         <div class="playhead"></div>
-                        <canvas id="canvasA" class="w-full h-full"></canvas>
+                        <canvas id="canvasA" class="w-full h-full cursor-crosshair"></canvas>
+                        <div id="loadingA" class="absolute inset-0 bg-black/60 hidden items-center justify-center z-30">
+                            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500"></div>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-between gap-6">
-                        <div class="flex gap-2">
-                            <button onclick="playDeck('A')" id="playBtnA" class="w-14 h-14 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-orange-600 transition group">
-                                <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <div class="flex gap-3">
+                            <button onclick="playDeck('A')" id="playBtnA" class="btn-transport bg-zinc-800 border-zinc-700 hover:bg-orange-600 hover:border-orange-400 group">
+                                <svg id="iconPlayA" class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             </button>
-                            <button onclick="cueDeck('A')" class="w-14 h-14 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-xs hover:bg-zinc-600">CUE</button>
+                            <button onclick="cueDeck('A')" class="btn-transport bg-zinc-800 border-zinc-700 font-black text-xs hover:bg-zinc-700">CUE</button>
+                            <button onclick="syncDeck('A')" class="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-[10px] font-bold hover:text-orange-500 transition">SYNC</button>
                         </div>
                         
-                        <div class="flex-1 px-4">
-                            <div class="flex justify-between text-[10px] font-bold text-zinc-500 mb-1">
-                                <span>PITCH</span>
-                                <span id="pitchValA">0.00%</span>
+                        <div class="flex-1 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                            <div class="flex justify-between text-[9px] font-black text-zinc-500 mb-2 uppercase tracking-widest">
+                                <span>Tempo / Pitch</span>
+                                <span id="pitchValA" class="text-orange-500">0.00%</span>
                             </div>
-                            <input type="range" id="pitchA" min="0.9" max="1.1" step="0.001" value="1" class="w-full">
+                            <input type="range" id="pitchA" min="0.9" max="1.1" step="0.0001" value="1" class="w-full">
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- Mixer Center -->
-            <section class="col-span-2 glass-panel rounded-xl flex flex-col items-center py-6 px-4 gap-8">
-                <div class="flex flex-col gap-6 items-center w-full">
-                    <div class="flex justify-between w-full gap-4">
-                        <div class="flex flex-col items-center gap-1">
-                            <div class="knob-input" data-param="high" data-deck="A"></div>
-                            <span class="text-[8px] font-bold text-zinc-500">HI</span>
-                        </div>
-                        <div class="flex flex-col items-center gap-1">
-                            <div class="knob-input" data-param="high" data-deck="B"></div>
-                            <span class="text-[8px] font-bold text-zinc-500">HI</span>
-                        </div>
+            <section class="col-span-2 glass-panel rounded-2xl flex flex-col items-center py-6 px-4 gap-6 border-zinc-800">
+                <div class="grid grid-cols-2 gap-x-8 gap-y-6 w-full">
+                    <!-- EQ Knobs -->
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="knob-input" id="knob-hi-A" data-param="high" data-deck="A"><div class="knob-marker"></div></div>
+                        <span class="text-[8px] font-black text-zinc-600">HI</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="knob-input" id="knob-hi-B" data-param="high" data-deck="B"><div class="knob-marker"></div></div>
+                        <span class="text-[8px] font-black text-zinc-600">HI</span>
                     </div>
                     
-                    <div class="flex justify-between w-full gap-4">
-                        <div class="flex flex-col items-center gap-1">
-                            <div class="knob-input" data-param="mid" data-deck="A"></div>
-                            <span class="text-[8px] font-bold text-zinc-500">MID</span>
-                        </div>
-                        <div class="flex flex-col items-center gap-1">
-                            <div class="knob-input" data-param="mid" data-deck="B"></div>
-                            <span class="text-[8px] font-bold text-zinc-500">MID</span>
-                        </div>
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="knob-input" id="knob-mid-A" data-param="mid" data-deck="A"><div class="knob-marker"></div></div>
+                        <span class="text-[8px] font-black text-zinc-600">MID</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="knob-input" id="knob-mid-B" data-param="mid" data-deck="B"><div class="knob-marker"></div></div>
+                        <span class="text-[8px] font-black text-zinc-600">MID</span>
                     </div>
 
-                    <div class="flex justify-between w-full gap-4">
-                        <div class="flex flex-col items-center gap-1">
-                            <div class="knob-input" data-param="low" data-deck="A"></div>
-                            <span class="text-[8px] font-bold text-zinc-500">LOW</span>
-                        </div>
-                        <div class="flex flex-col items-center gap-1">
-                            <div class="knob-input" data-param="low" data-deck="B"></div>
-                            <span class="text-[8px] font-bold text-zinc-500">LOW</span>
-                        </div>
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="knob-input" id="knob-low-A" data-param="low" data-deck="A"><div class="knob-marker"></div></div>
+                        <span class="text-[8px] font-black text-zinc-600">LOW</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                        <div class="knob-input" id="knob-low-B" data-param="low" data-deck="B"><div class="knob-marker"></div></div>
+                        <span class="text-[8px] font-black text-zinc-600">LOW</span>
                     </div>
                 </div>
 
-                <div class="flex-1 flex gap-8 py-4">
-                    <input type="range" id="volA" orient="vertical" min="0" max="1" step="0.01" value="0.8" class="appearance-none w-2 h-full bg-zinc-800 rounded vertical-slider">
-                    <input type="range" id="volB" orient="vertical" min="0" max="1" step="0.01" value="0.8" class="appearance-none w-2 h-full bg-zinc-800 rounded vertical-slider">
+                <div class="flex-1 flex gap-12 py-4">
+                    <div class="flex flex-col items-center gap-2">
+                        <input type="range" id="volA" orient="vertical" min="0" max="1" step="0.01" value="0.8" class="appearance-none w-1.5 h-full bg-zinc-800 rounded-full accent-orange-500 overflow-hidden" style="-webkit-appearance: slider-vertical;">
+                        <span class="text-[9px] font-bold text-orange-500">A</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-2">
+                        <input type="range" id="volB" orient="vertical" min="0" max="1" step="0.01" value="0.8" class="appearance-none w-1.5 h-full bg-zinc-800 rounded-full accent-cyan-500 overflow-hidden" style="-webkit-appearance: slider-vertical;">
+                        <span class="text-[9px] font-bold text-cyan-400">B</span>
+                    </div>
                 </div>
 
-                <div class="w-full flex flex-col items-center gap-2">
-                    <span class="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Crossfader</span>
-                    <input type="range" id="crossfader" min="0" max="1" step="0.01" value="0.5" class="w-full">
+                <div class="w-full flex flex-col items-center gap-2 mt-4">
+                    <div class="flex justify-between w-full text-[8px] font-black text-zinc-600 uppercase tracking-tighter">
+                        <span>Deck A</span>
+                        <span>Crossfader</span>
+                        <span>Deck B</span>
+                    </div>
+                    <input type="range" id="crossfader" min="0" max="1" step="0.01" value="0.5" class="w-full h-2 accent-white">
                 </div>
             </section>
 
             <!-- Deck B -->
             <section class="col-span-5 flex flex-col gap-2 h-full">
-                <div class="glass-panel p-4 rounded-xl flex-1 flex flex-col">
+                <div class="glass-panel p-5 rounded-2xl flex-1 flex flex-col border-cyan-500/20">
                     <div class="flex justify-between items-start mb-4 text-right">
                          <div class="text-left">
-                            <p id="timeB" class="font-mono text-2xl text-cyan-400">00:00.0</p>
-                            <p id="remB" class="font-mono text-[10px] text-zinc-600">-00:00.0</p>
+                            <p id="timeB" class="font-mono text-3xl text-cyan-400 leading-none">00:00.0</p>
+                            <p id="remB" class="font-mono text-[11px] text-zinc-600 mt-1">-00:00.0</p>
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-cyan-400 border border-cyan-400/30 px-2 py-0.5 rounded">DECK B</span>
-                            <h2 id="titleB" class="text-2xl font-black truncate max-w-xs mt-1">Ready to Load...</h2>
-                            <p class="text-zinc-500 text-xs font-medium text-right">SoundAI AI Original</p>
+                            <span class="text-[9px] font-black text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/30">DECK B</span>
+                            <h2 id="titleB" class="text-2xl font-black truncate max-w-xs mt-1 tracking-tight">Cargar pista...</h2>
+                            <p class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">SoundAI Original Artist</p>
                         </div>
                     </div>
 
-                    <div class="waveform-container mb-4">
+                    <div class="waveform-container mb-6 group">
                         <div class="playhead"></div>
-                        <canvas id="canvasB" class="w-full h-full"></canvas>
+                        <canvas id="canvasB" class="w-full h-full cursor-crosshair"></canvas>
+                        <div id="loadingB" class="absolute inset-0 bg-black/60 hidden items-center justify-center z-30">
+                            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-cyan-500"></div>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-between gap-6">
-                         <div class="flex-1 px-4">
-                            <div class="flex justify-between text-[10px] font-bold text-zinc-500 mb-1">
-                                <span>PITCH</span>
-                                <span id="pitchValB">0.00%</span>
+                         <div class="flex-1 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                            <div class="flex justify-between text-[9px] font-black text-zinc-500 mb-2 uppercase tracking-widest">
+                                <span>Tempo / Pitch</span>
+                                <span id="pitchValB" class="text-cyan-400">0.00%</span>
                             </div>
-                            <input type="range" id="pitchB" min="0.9" max="1.1" step="0.001" value="1" class="w-full">
+                            <input type="range" id="pitchB" min="0.9" max="1.1" step="0.0001" value="1" class="w-full">
                         </div>
 
-                        <div class="flex gap-2">
-                            <button onclick="cueDeck('B')" class="w-14 h-14 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-xs hover:bg-zinc-600">CUE</button>
-                            <button onclick="playDeck('B')" id="playBtnB" class="w-14 h-14 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-cyan-500 transition group">
-                                <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <div class="flex gap-3">
+                            <button onclick="syncDeck('B')" class="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-[10px] font-bold hover:text-cyan-400 transition">SYNC</button>
+                            <button onclick="cueDeck('B')" class="btn-transport bg-zinc-800 border-zinc-700 font-black text-xs hover:bg-zinc-700">CUE</button>
+                            <button onclick="playDeck('B')" id="playBtnB" class="btn-transport bg-zinc-800 border-zinc-700 hover:bg-cyan-500 hover:border-cyan-300 group">
+                                <svg id="iconPlayB" class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             </button>
                         </div>
                     </div>
@@ -271,29 +298,28 @@
             </section>
         </div>
 
-        <!-- Browser Section -->
-        <div class="h-64 glass-panel border-t-0 border-x-0 mx-2 mb-2 rounded-b-xl overflow-hidden flex flex-col">
-            <div class="flex items-center justify-between px-6 py-3 border-b border-zinc-800 bg-zinc-900/50">
-                <div class="flex gap-6 text-xs font-bold text-zinc-400">
-                    <button class="text-white border-b-2 border-green-500 pb-1">ALL TRACKS</button>
-                    <button class="hover:text-white">GENRES</button>
-                    <button class="hover:text-white">MY MIXES</button>
+        <div class="h-60 glass-panel border-t-0 border-x-0 mx-2 mb-2 rounded-b-2xl overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between px-8 py-3 border-b border-zinc-800 bg-zinc-900/50">
+                <div class="flex gap-8 text-[11px] font-black text-zinc-500 tracking-widest">
+                    <button class="text-white border-b-2 border-green-500 pb-1">LIBRARY EXPLORER</button>
+                    <button class="hover:text-white transition">COLLECTIONS</button>
+                    <button class="hover:text-white transition">HISTORY</button>
                 </div>
                 <div class="flex items-center gap-4">
-                    <span id="loadStatus" class="text-[9px] text-green-500 font-mono">GITHUB REPO SYNCED</span>
+                    <span id="loadStatus" class="text-[9px] text-green-500 font-mono tracking-tighter uppercase">Cloud Repo Active</span>
                 </div>
             </div>
 
             <div class="flex-1 overflow-y-auto custom-scrollbar">
-                <table class="w-full text-left text-sm border-separate border-spacing-0">
-                    <thead class="text-zinc-500 sticky top-0 bg-zinc-900 z-10">
+                <table class="w-full text-left text-xs border-separate border-spacing-0">
+                    <thead class="text-zinc-500 sticky top-0 bg-zinc-900 z-10 shadow-md">
                         <tr>
-                            <th class="px-6 py-2 border-b border-zinc-800 font-medium text-[10px]">TRACK</th>
-                            <th class="px-6 py-2 border-b border-zinc-800 font-medium text-[10px]">FORMAT</th>
-                            <th class="px-6 py-2 border-b border-zinc-800 font-medium text-[10px] text-right">ACTION</th>
+                            <th class="px-8 py-3 border-b border-zinc-800 font-black uppercase tracking-widest text-[9px]">Track Name</th>
+                            <th class="px-8 py-3 border-b border-zinc-800 font-black uppercase tracking-widest text-[9px]">BPM</th>
+                            <th class="px-8 py-3 border-b border-zinc-800 font-black uppercase tracking-widest text-[9px] text-right">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="libraryTable">
+                    <tbody id="libraryTable" class="divide-y divide-zinc-800/30">
                         <!-- Tracks dinámicos -->
                     </tbody>
                 </table>
@@ -302,13 +328,16 @@
     </main>
 
     <script>
-        /* Configuración Global */
         const GITHUB_REPO = "ApoloSolInvictus/soundai";
         const AUDIO_PATH = "audio";
 
-        /* Motor de Audio */
-        const channelA = new Tone.Channel().toDestination();
-        const channelB = new Tone.Channel().toDestination();
+        // Motor de Audio Avanzado
+        const masterLimit = new Tone.Limiter(-1).toDestination();
+        const masterMeter = new Tone.Meter();
+        const masterGain = new Tone.Gain(1).connect(masterLimit).connect(masterMeter);
+        
+        const channelA = new Tone.Channel().connect(masterGain);
+        const channelB = new Tone.Channel().connect(masterGain);
         
         const eqA = new Tone.EQ3(0, 0, 0).connect(channelA);
         const eqB = new Tone.EQ3(0, 0, 0).connect(channelB);
@@ -316,31 +345,33 @@
         const playerA = new Tone.Player().connect(eqA);
         const playerB = new Tone.Player().connect(eqB);
 
-        const crossfade = new Tone.CrossFade().toDestination();
+        const crossfade = new Tone.CrossFade().connect(masterGain);
+        channelA.disconnect(masterGain); // Conectar a través del fader
+        channelB.disconnect(masterGain);
         channelA.connect(crossfade.a);
         channelB.connect(crossfade.b);
 
         /* Estado */
         let tracks = [];
+        let masterBPM = 124.0;
         let state = {
-            A: { playing: false, buffer: null, canvas: null, ctx: null, offset: 0 },
-            B: { playing: false, buffer: null, canvas: null, ctx: null, offset: 0 }
+            A: { playing: false, buffer: null, canvas: null, ctx: null, bpm: 124 },
+            B: { playing: false, buffer: null, canvas: null, ctx: null, bpm: 124 }
         };
 
-        /* Inicialización */
         window.onload = async () => {
             initCanvases();
             await loadFromGitHub();
             initKnobs();
-            requestAnimationFrame(drawLoop);
+            requestAnimationFrame(renderLoop);
         };
 
         function initCanvases() {
             ['A', 'B'].forEach(id => {
                 const canvas = document.getElementById(`canvas${id}`);
-                const rect = canvas.parentElement.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
+                const parent = canvas.parentElement;
+                canvas.width = parent.clientWidth;
+                canvas.height = parent.clientHeight;
                 state[id].canvas = canvas;
                 state[id].ctx = canvas.getContext('2d');
             });
@@ -353,76 +384,101 @@
                 tracks = files.filter(f => f.name.endsWith('.mp3') || f.name.endsWith('.wav'));
                 renderLibrary();
             } catch (e) {
-                document.getElementById('loadStatus').innerText = "ERROR LOADING REPO";
-                document.getElementById('loadStatus').className = "text-red-500 text-[9px]";
+                updateStatus("REPO ERROR", true);
             }
         }
 
         function renderLibrary() {
             const table = document.getElementById('libraryTable');
             table.innerHTML = tracks.map((t, i) => `
-                <tr class="hover:bg-white/5 transition group border-b border-zinc-800/50">
-                    <td class="px-6 py-3 font-bold text-zinc-300">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center text-[10px] text-zinc-500">${i+1}</div>
-                            ${t.name.split('.')[0]}
+                <tr class="hover:bg-zinc-800/40 transition group border-b border-zinc-800/20">
+                    <td class="px-8 py-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-8 h-8 bg-zinc-900 rounded flex items-center justify-center text-[10px] text-zinc-500 font-bold border border-zinc-800">${i+1}</div>
+                            <span class="font-bold text-zinc-200">${t.name.split('.')[0]}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-3 text-zinc-500 font-mono text-[10px] uppercase">${t.name.split('.').pop()}</td>
-                    <td class="px-6 py-3 text-right">
+                    <td class="px-8 py-4 text-zinc-500 font-mono text-[10px]">124.00</td>
+                    <td class="px-8 py-4 text-right">
                         <div class="flex gap-2 justify-end">
-                            <button onclick="loadToDeck('${t.download_url}', 'A', '${t.name}')" class="px-3 py-1 bg-orange-600/10 text-orange-500 rounded text-[9px] font-bold hover:bg-orange-600 hover:text-white transition">DECK A</button>
-                            <button onclick="loadToDeck('${t.download_url}', 'B', '${t.name}')" class="px-3 py-1 bg-cyan-400/10 text-cyan-400 rounded text-[9px] font-bold hover:bg-cyan-400 hover:text-black transition">DECK B</button>
+                            <button onclick="loadToDeck('${t.download_url}', 'A', '${t.name}')" class="px-4 py-1.5 bg-orange-600/10 text-orange-500 rounded-lg text-[9px] font-black hover:bg-orange-600 hover:text-white transition uppercase border border-orange-500/20">Load A</button>
+                            <button onclick="loadToDeck('${t.download_url}', 'B', '${t.name}')" class="px-4 py-1.5 bg-cyan-400/10 text-cyan-400 rounded-lg text-[9px] font-black hover:bg-cyan-400 hover:text-black transition uppercase border border-cyan-400/20">Load B</button>
                         </div>
                     </td>
                 </tr>
             `).join('');
         }
 
-        /* Lógica de Decks */
         async function loadToDeck(url, id, name) {
-            const status = document.getElementById('loadStatus');
-            status.innerText = `LOADING ${id}...`;
-            
+            document.getElementById(`loading${id}`).classList.remove('hidden');
             await Tone.start();
-            const player = (id === 'A' ? playerA : playerB);
             
+            const player = (id === 'A' ? playerA : playerB);
             try {
                 const buffer = await new Tone.ToneAudioBuffer().load(url);
                 player.buffer = buffer;
                 state[id].buffer = buffer;
                 document.getElementById(`title${id}`).innerText = name.split('.')[0];
-                status.innerText = `READY ${id}`;
+                updateStatus(`LOADED ${id}`);
             } catch (err) {
-                status.innerText = `LOAD FAILED`;
+                updateStatus(`ERROR ${id}`, true);
+            } finally {
+                document.getElementById(`loading${id}`).classList.add('hidden');
             }
         }
 
         function playDeck(id) {
             const player = (id === 'A' ? playerA : playerB);
             const btn = document.getElementById(`playBtn${id}`);
+            const icon = document.getElementById(`iconPlay${id}`);
             
             if (player.state === "started") {
                 player.stop();
                 state[id].playing = false;
                 btn.classList.remove(id === 'A' ? 'bg-orange-600' : 'bg-cyan-500');
-                btn.innerHTML = `<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+                icon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
             } else if (player.buffer.loaded) {
                 player.start();
                 state[id].playing = true;
                 btn.classList.add(id === 'A' ? 'bg-orange-600' : 'bg-cyan-500');
-                btn.innerHTML = `<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+                icon.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
             }
         }
 
-        function drawLoop() {
-            requestAnimationFrame(drawLoop);
+        function cueDeck(id) {
+            const player = (id === 'A' ? playerA : playerB);
+            player.stop();
+            player.seek(0);
+            if (state[id].playing) playDeck(id);
+        }
+
+        function syncDeck(id) {
+            const player = (id === 'A' ? playerA : playerB);
+            const ratio = masterBPM / state[id].bpm;
+            player.playbackRate = ratio;
+            document.getElementById(`pitchVal${id}`).innerText = ((ratio - 1) * 100).toFixed(2) + "%";
+            document.getElementById(`pitch${id}`).value = ratio;
+        }
+
+        function adjustMasterBPM(delta) {
+            masterBPM += delta;
+            document.getElementById('masterClock').innerText = masterBPM.toFixed(2);
+        }
+
+        function renderLoop() {
+            requestAnimationFrame(renderLoop);
             
+            // Master VU Real
+            const level = Tone.dbToGain(masterMeter.getValue());
+            const vuWidth = Math.min(100, level * 200);
+            document.getElementById('masterVu').style.width = vuWidth + '%';
+
             ['A', 'B'].forEach(id => {
                 const { canvas, ctx, buffer, playing } = state[id];
+                const player = (id === 'A' ? playerA : playerB);
+                
                 if (!buffer) return;
 
-                const player = (id === 'A' ? playerA : playerB);
                 const currentTime = player.seconds;
                 const duration = buffer.duration;
                 
@@ -430,66 +486,58 @@
                 document.getElementById(`time${id}`).innerText = formatTime(currentTime);
                 document.getElementById(`rem${id}`).innerText = "-" + formatTime(duration - currentTime);
 
-                // Dibujar Waveform horizontal
+                // Dibujar Waveform Dinámica
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
                 const rawData = buffer.getChannelData(0);
-                const pps = 100; // Pixeles por segundo
+                const zoom = 150; // Pixeles por segundo
                 const center = canvas.width / 2;
-                const amp = canvas.height / 1.5;
+                const amplitude = canvas.height / 2;
 
-                ctx.strokeStyle = id === 'A' ? '#ff5500' : '#00ccff';
                 ctx.lineWidth = 2;
+                ctx.strokeStyle = id === 'A' ? '#ff5500' : '#00ccff';
                 ctx.beginPath();
 
-                for (let x = 0; x < canvas.width; x++) {
-                    const timeAtX = currentTime + (x - center) / pps;
+                // Dibujar 10 segundos alrededor del playhead
+                const startX = -center;
+                const endX = canvas.width - center;
+
+                for (let x = startX; x < endX; x += 2) {
+                    const timeAtX = currentTime + (x / zoom);
                     if (timeAtX < 0 || timeAtX > duration) continue;
 
                     const index = Math.floor(timeAtX * buffer.sampleRate);
                     const val = rawData[index] || 0;
                     
-                    const y = (canvas.height / 2) + (val * amp);
-                    if (x === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
+                    const drawX = x + center;
+                    const drawY = amplitude + (val * amplitude * 1.2);
+                    
+                    if (x === startX) ctx.moveTo(drawX, drawY);
+                    else ctx.lineTo(drawX, drawY);
                 }
                 ctx.stroke();
-
-                // VU Meter Fake (basado en amplitud si suena)
-                if (playing) {
-                    const vuVal = 40 + Math.random() * 60;
-                    document.getElementById('masterVu').style.width = vuVal + '%';
-                }
             });
-        }
-
-        function formatTime(s) {
-            const m = Math.floor(s / 60);
-            const sec = (s % 60).toFixed(1);
-            return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
         }
 
         function initKnobs() {
             document.querySelectorAll('.knob-input').forEach(knob => {
-                let y = 0;
-                let val = 0;
+                let startY = 0;
+                let currentVal = 0;
 
                 knob.addEventListener('mousedown', e => {
-                    y = e.clientY;
+                    startY = e.clientY;
                     const move = em => {
-                        const delta = y - em.clientY;
-                        val = Math.max(-20, Math.min(10, val + delta * 0.5));
-                        y = em.clientY;
+                        const delta = startY - em.clientY;
+                        currentVal = Math.max(-20, Math.min(10, currentVal + delta * 0.8));
+                        startY = em.clientY;
                         
-                        // Aplicar EQ
                         const deck = knob.dataset.deck;
                         const param = knob.dataset.param;
                         const eq = (deck === 'A' ? eqA : eqB);
-                        eq[param].value = val;
+                        eq[param].value = currentVal;
                         
                         // Rotación visual
-                        const deg = ((val + 20) / 30) * 270 - 135;
-                        knob.style.transform = `rotate(${deg}deg)`;
+                        const deg = ((currentVal + 20) / 30) * 270 - 135;
+                        knob.querySelector('.knob-marker').style.transform = `translateX(-50%) rotate(${deg}deg)`;
                     };
                     const up = () => {
                         window.removeEventListener('mousemove', move);
@@ -500,12 +548,12 @@
                 });
             });
 
-            // Sliders Faders
+            // Handlers de Sliders
             document.getElementById('volA').oninput = e => channelA.volume.value = Tone.gainToDb(e.target.value);
             document.getElementById('volB').oninput = e => channelB.volume.value = Tone.gainToDb(e.target.value);
             document.getElementById('crossfader').oninput = e => crossfade.fade.value = e.target.value;
+            document.getElementById('masterVol').oninput = e => masterGain.gain.value = e.target.value;
             
-            // Pitch
             document.getElementById('pitchA').oninput = e => {
                 playerA.playbackRate = e.target.value;
                 document.getElementById('pitchValA').innerText = ((e.target.value - 1) * 100).toFixed(2) + "%";
@@ -514,6 +562,19 @@
                 playerB.playbackRate = e.target.value;
                 document.getElementById('pitchValB').innerText = ((e.target.value - 1) * 100).toFixed(2) + "%";
             };
+        }
+
+        function formatTime(s) {
+            if (isNaN(s)) return "00:00.0";
+            const m = Math.floor(s / 60);
+            const sec = (s % 60).toFixed(1);
+            return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        function updateStatus(msg, error = false) {
+            const el = document.getElementById('loadStatus');
+            el.innerText = msg;
+            el.className = error ? "text-red-500 font-mono text-[9px]" : "text-green-500 font-mono text-[9px]";
         }
     </script>
 </body>
